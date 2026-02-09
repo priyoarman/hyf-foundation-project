@@ -1,3 +1,8 @@
+
+if (typeof document === "undefined") {
+  throw new Error("This script must be run in a browser, not with Node.js");
+}
+
 const gameBoard = document.getElementById("game-board");
 const moveDisplay = document.getElementById("move-count");
 const timeDisplay = document.getElementById("timer");
@@ -11,9 +16,24 @@ let timerInterval = null;
 let timeStarted = false;
 let seconds = 0;
 
-const items = ["🚀", "🌟", "🎸", "🍕", "🐱", "🌵", "💎", "🍦"];
 
-function initGame() {
+let items = [];
+
+async function fetchCards() {
+  try {
+    const response = await fetch("/api/cards");
+    if (!response.ok) throw new Error("Failed to fetch cards");
+    const data = await response.json();
+    // Assuming each card has a 'value' property (adjust if needed)
+    items = data.map(card => card.value);
+  } catch (err) {
+    console.error("Error fetching cards:", err);
+    // Fallback to default items if API fails
+    items = ["🚀", "🌟", "🎸", "🍕", "🐱", "🌵", "💎", "🍦"];
+  }
+}
+
+async function initGame() {
   moves = 0;
   seconds = 0;
   timeStarted = false;
@@ -22,6 +42,7 @@ function initGame() {
   clearInterval(timerInterval);
   gameBoard.innerHTML = "";
 
+  await fetchCards();
   const deck = [...items, ...items];
   deck.sort(() => 0.5 - Math.random());
 
