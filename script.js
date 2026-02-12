@@ -2,7 +2,6 @@ const gameBoard = document.getElementById("game-board");
 const moveDisplay = document.getElementById("move-count");
 const timeDisplay = document.getElementById("timer");
 
-let cards = [];
 let hasFlippedCard = false;
 let lockBoard = false;
 let firstCard, secondCard;
@@ -11,9 +10,7 @@ let timerInterval = null;
 let timeStarted = false;
 let seconds = 0;
 
-const items = ["🚀", "🌟", "🎸", "🍕", "🐱", "🌵", "💎", "🍦"];
-
-function initGame() {
+async function initGame() {
   moves = 0;
   seconds = 0;
   timeStarted = false;
@@ -22,32 +19,46 @@ function initGame() {
   clearInterval(timerInterval);
   gameBoard.innerHTML = "";
 
-  const deck = [...items, ...items];
-  deck.sort(() => 0.5 - Math.random());
+  try {
+    // Week 2: Fetch cards from the Backend API
+    const response = await fetch("http://localhost:3000/api/cards");
+    const icons = await response.json();
 
-  deck.forEach((item) => {
-    const card = document.createElement("div");
-    card.classList.add("card");
-    card.dataset.value = item;
+    // Create pairs and shuffle
+    const deck = [...icons, ...icons];
+    deck.sort(() => 0.5 - Math.random());
 
-    const inner = document.createElement("div");
-    inner.classList.add("card-inner");
+    deck.forEach((item) => {
+      const card = document.createElement("div");
+      card.classList.add("card");
+      card.dataset.value = item;
 
-    const front = document.createElement("div");
-    front.classList.add("card-front");
+      const inner = document.createElement("div");
+      inner.classList.add("card-inner");
 
-    const back = document.createElement("div");
-    back.classList.add("card-back");
-    back.innerText = item;
+      const front = document.createElement("div");
+      front.classList.add("card-front");
 
-    inner.appendChild(front);
-    inner.appendChild(back);
-    card.appendChild(inner);
+      const back = document.createElement("div");
+      back.classList.add("card-back");
+      
+      const img = document.createElement("img");
+      img.src = `assets/${item}`;
+      img.alt = item;
+      back.appendChild(img);
 
-    card.addEventListener("click", flipCard);
+      inner.appendChild(front);
+      inner.appendChild(back);
+      card.appendChild(inner);
 
-    gameBoard.appendChild(card);
-  });
+      card.addEventListener("click", flipCard);
+      gameBoard.appendChild(card);
+    });
+  } catch (error) {
+    console.error("Failed to fetch cards:", error);
+    gameBoard.innerHTML =
+      "<p style='color:red'>Error loading game data. Is the server running?</p>";
+  }
 }
 
 function startTimer() {
@@ -87,7 +98,7 @@ function incrementMoves() {
 }
 
 function checkForMatch() {
-  let isMatch = firstCard.dataset.value === secondCard.dataset.value;
+  const isMatch = firstCard.dataset.value === secondCard.dataset.value;
 
   isMatch ? disableCards() : unflipCards();
 }
@@ -95,35 +106,29 @@ function checkForMatch() {
 function disableCards() {
   firstCard.removeEventListener("click", flipCard);
   secondCard.removeEventListener("click", flipCard);
-  resetBoard();
-  checkAllMatched();
+
+  lockBoard = true;
+  setTimeout(() => {
+    firstCard.classList.add("matched");
+    secondCard.classList.add("matched");
+    resetBoard();
+    checkAllMatched();
+  }, 1000);
 }
 
 function checkAllMatched() {
-  const remaining = gameBoard.querySelectorAll('.card:not(.flipped)');
+  const remaining = document.querySelectorAll(".card:not(.matched)");
+
   if (remaining.length === 0) {
     clearInterval(timerInterval);
-    timerInterval = null;
-    timeStarted = false;
-
-    if (gameBoard.animate) {
-      gameBoard.animate(
-        [
-          { transform: 'scale(1)' },
-          { transform: 'scale(1.05)' },
-          { transform: 'scale(1)' }
-        ],
-        { duration: 600, iterations: 3 }
-      );
-    } else {
-      gameBoard.classList.add('all-matched');
-    }
+    setTimeout(() => {
+      alert(`You won! Moves: ${moves}, Time: ${timeDisplay.textContent}`);
+    }, 500);
   }
 }
 
 function unflipCards() {
   lockBoard = true;
-
   setTimeout(() => {
     firstCard.classList.remove("flipped");
     secondCard.classList.remove("flipped");
@@ -134,7 +139,6 @@ function unflipCards() {
 function resetBoard() {
   [hasFlippedCard, lockBoard] = [false, false];
   [firstCard, secondCard] = [null, null];
-
 }
 
 function restartGame() {
